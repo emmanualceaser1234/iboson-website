@@ -19,6 +19,7 @@ export type ShapeName =
   | "cube"
   | "globe"
   | "magnifier"
+  | "like"
   | "dust";
 
 type Vec3 = [number, number, number];
@@ -53,7 +54,23 @@ type ProceduralShape = {
   glow?: number;
 };
 
-export type ShapeDef = ImageShape | ProceduralShape;
+/**
+ * Line art drawn with the 2D canvas API, then sampled exactly like an image shape. Used where
+ * the Figma particle export isn't available yet (e.g. the Lyks "like" bubble).
+ */
+type CanvasShape = {
+  kind: "canvas";
+  /** Canvas size in px (keep the longer side ≤ 512, like sampled images). */
+  width: number;
+  height: number;
+  /** Draw in white on the transparent canvas; brighter/opaquer strokes attract more dots. */
+  draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void;
+  depth?: number;
+  fill?: number;
+  glow?: number;
+};
+
+export type ShapeDef = ImageShape | ProceduralShape | CanvasShape;
 
 export type ShapeBuffer = {
   positions: Float32Array;
@@ -160,8 +177,56 @@ function atom(): [Vec3, Vec3] {
   return [onOrbit(o, t, 0.055), R() < 0.55 ? gold() : blue()];
 }
 
+/**
+ * Lyks "like" notification (Figma Products page): a speech bubble with its tail at the
+ * bottom, a thin inner frame, a filled heart and the count "1".
+ */
+function drawLike(ctx: CanvasRenderingContext2D) {
+  ctx.fillStyle = "#fff";
+  ctx.strokeStyle = "#fff";
+  ctx.lineJoin = "round";
+
+  // Outer bubble with tail, as one outline.
+  const l = 24, t = 24, r = 488, b = 324, rad = 64;
+  ctx.lineWidth = 16;
+  ctx.beginPath();
+  ctx.moveTo(l + rad, t);
+  ctx.arcTo(r, t, r, b, rad);
+  ctx.arcTo(r, b, l, b, rad);
+  ctx.lineTo(296, b);
+  ctx.lineTo(250, 406);
+  ctx.lineTo(214, b);
+  ctx.arcTo(l, b, l, t, rad);
+  ctx.arcTo(l, t, r, t, rad);
+  ctx.closePath();
+  ctx.stroke();
+
+  // Faint inner frame.
+  ctx.globalAlpha = 0.55;
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.roundRect(54, 54, 404, 240, 44);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // Heart.
+  const cx = 170, cy = 178, s = 92;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy + s * 0.75);
+  ctx.bezierCurveTo(cx - s * 1.25, cy - s * 0.05, cx - s * 0.62, cy - s * 0.98, cx, cy - s * 0.36);
+  ctx.bezierCurveTo(cx + s * 0.62, cy - s * 0.98, cx + s * 1.25, cy - s * 0.05, cx, cy + s * 0.75);
+  ctx.fill();
+
+  // Count.
+  ctx.font = "700 200px Arial, Helvetica, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("1", 352, 184);
+}
+
 /* ---------- registry ---------- */
 export const SHAPES: Record<ShapeName, ShapeDef> = {
+  like: { kind: "canvas", width: 512, height: 420, draw: drawLike, depth: 0.45 },
   rocket: { kind: "image", src: "/particles/rocket.png", depth: 0.5, fill: 0.92, minAlpha: 0.2 },
   atom: { kind: "procedural", generate: atom, width: 4.3, height: 4.3, fill: 0.95 },
   cloud: { kind: "procedural", generate: cloud, width: 7.2, height: 3.6, glow: 0.25 },
@@ -192,6 +257,16 @@ async function loadPixels(src: string): Promise<Pixels> {
   if (!ctx) throw new Error("2D canvas unavailable");
   ctx.drawImage(img, 0, 0, w, h);
   return { data: ctx.getImageData(0, 0, w, h).data, w, h };
+}
+
+function drawPixels(def: CanvasShape): Pixels {
+  const canvas = document.createElement("canvas");
+  canvas.width = def.width;
+  canvas.height = def.height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) throw new Error("2D canvas unavailable");
+  def.draw(ctx, def.width, def.height);
+  return { data: ctx.getImageData(0, 0, def.width, def.height).data, w: def.width, h: def.height };
 }
 
 function sampleImage(px: Pixels, def: ImageShape, count: number): ShapeBuffer {
@@ -402,11 +477,15 @@ export function getShapeBuffer(name: ShapeName, count: number): Promise<ShapeBuf
   let job = cache.get(key);
   if (!job) {
     const def = SHAPES[name];
-    job = (
+    const built =
       def.kind === "image"
         ? loadPixels(def.src).then((px) => sampleImage(px, def, count))
-        : Promise.resolve(sampleProcedural(def, count))
-    ).then(applyColorPattern);
+        : def.kind === "canvas"
+          ? Promise.resolve().then(() =>
+              sampleImage(drawPixels(def), { kind: "image", src: name, depth: def.depth, fill: def.fill, glow: def.glow }, count),
+            )
+          : Promise.resolve(sampleProcedural(def, count));
+    job = built.then(applyColorPattern);
     job.catch(() => cache.delete(key));
     cache.set(key, job);
   }

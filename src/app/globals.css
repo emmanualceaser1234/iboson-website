@@ -138,6 +138,17 @@
   }
 }
 
+/* ---------- Tabs (<Tabs>) ---------- */
+.tab-panel {
+  animation: tab-in 0.45s cubic-bezier(0.16, 0.84, 0.24, 1);
+}
+@keyframes tab-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
 /* ---------- Particle fallbacks: static Figma art, only if WebGL can't run ---------- */
 /* Hidden while the particle cloud loads (no image-to-particles jump); shown only when the
    scene fails. display:none also stops the lazy image from downloading at all. */
@@ -154,6 +165,9 @@ html[data-particles="off"] .particle-fallback {
   }
   .scroll-fan-inner {
     transition: none;
+  }
+  .tab-panel {
+    animation: none;
   }
   [data-reveal],
   .text-reveal-char,

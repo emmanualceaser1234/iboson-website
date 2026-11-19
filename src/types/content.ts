@@ -44,3 +44,32 @@ export type Award = {
   /** Laurel badge image in /public; omitted until supplied (the name shows as text instead). */
   image?: string;
 };
+
+/** A titled line item: "How it works" step, "Where it helps" use case or "What powers it" tech. */
+export type ProductPoint = { title: string; description: string };
+
+export type ProductModule = {
+  title: string;
+  description: string;
+  link?: NavLink;
+  /** Shown instead of a link, e.g. "In design". */
+  status?: string;
+};
+
+export type ProductDetail = {
+  slug: string;
+  name: string;
+  eyebrow: string;
+  tagline: string;
+  overview: string;
+  /** The problem it solves, shown with a sparkle under the overview. */
+  problem: string;
+  /** Blooming's "Inside Blooming" modules (shown instead of steps). */
+  modules?: ProductModule[];
+  steps?: ProductPoint[];
+  solutions: ProductPoint[];
+  technology: ProductPoint[];
+  builtFor: string;
+  website: string;
+  shape: ShapeName;
+};
