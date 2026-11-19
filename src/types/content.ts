@@ -92,3 +92,10 @@ export type BlogPost = {
 };
 
 export type FeaturedPost = Omit<BlogPost, "date" | "tags" | "slug"> & { author: string };
+
+export type JobOpening = {
+  title: string;
+  description: string;
+  department: string;
+  location: string;
+};

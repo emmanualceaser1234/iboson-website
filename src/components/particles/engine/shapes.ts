@@ -20,6 +20,7 @@ export type ShapeName =
   | "globe"
   | "magnifier"
   | "like"
+  | "megaphone"
   | "dust";
 
 type Vec3 = [number, number, number];
@@ -224,9 +225,42 @@ function drawLike(ctx: CanvasRenderingContext2D) {
   ctx.fillText("1", 352, 184);
 }
 
+/**
+ * Careers megaphone (Figma "Join our team"): mouthpiece on the left, flared bell with a
+ * speaker ring on the right, handle underneath, tilted up. Parts are SVG path data so the
+ * same geometry can be previewed outside the browser. Fill alpha sets how many dots land
+ * inside a part; strokes give the crisp outlines.
+ */
+const MEGAPHONE_PARTS: { d: string; fill?: number; stroke: number }[] = [
+  { d: "M40,-42 L130,-42 L130,42 L40,42 Z", fill: 0.55, stroke: 12 },
+  { d: "M40,-42 A16,42 0 1,0 40,42 A16,42 0 1,0 40,-42 Z", stroke: 10 },
+  { d: "M130,-55 L360,-150 L360,150 L130,55 Z", fill: 0.4, stroke: 14 },
+  { d: "M360,-150 A48,150 0 1,1 360,150 A48,150 0 1,1 360,-150 Z", fill: 0.35, stroke: 16 },
+  { d: "M372,-62 A20,62 0 1,1 372,62 A20,62 0 1,1 372,-62 Z", stroke: 9 },
+  { d: "M150,40 L195,40 L185,170 Q183,185 168,185 L160,185 Q146,185 147,170 Z", fill: 0.65, stroke: 10 },
+];
+function drawMegaphone(ctx: CanvasRenderingContext2D) {
+  ctx.translate(60, 280);
+  ctx.rotate(-0.28);
+  ctx.fillStyle = "#fff";
+  ctx.strokeStyle = "#fff";
+  ctx.lineJoin = "round";
+  for (const part of MEGAPHONE_PARTS) {
+    const path = new Path2D(part.d);
+    if (part.fill) {
+      ctx.globalAlpha = part.fill;
+      ctx.fill(path);
+    }
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = part.stroke;
+    ctx.stroke(path);
+  }
+}
+
 /* ---------- registry ---------- */
 export const SHAPES: Record<ShapeName, ShapeDef> = {
   like: { kind: "canvas", width: 512, height: 420, draw: drawLike, depth: 0.45 },
+  megaphone: { kind: "canvas", width: 512, height: 440, draw: drawMegaphone, depth: 0.5 },
   rocket: { kind: "image", src: "/particles/rocket.png", depth: 0.5, fill: 0.92, minAlpha: 0.2 },
   atom: { kind: "procedural", generate: atom, width: 4.3, height: 4.3, fill: 0.95 },
   cloud: { kind: "procedural", generate: cloud, width: 7.2, height: 3.6, glow: 0.25 },
