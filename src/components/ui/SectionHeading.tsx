@@ -9,6 +9,8 @@ type SectionHeadingProps = {
   outline: string;
   /** Which part comes first. Figma uses both orders ("IDEAS TO ~REALITY~", "~OUR~ PRODUCTS"). */
   outlineFirst?: boolean;
+  /** 80px instead of 120px below the title (Figma inner-page sections). */
+  compact?: boolean;
   as?: ElementType;
   id?: string;
   className?: string;
@@ -22,6 +24,7 @@ export function SectionHeading({
   solid,
   outline,
   outlineFirst = false,
+  compact = false,
   as: Tag = "h2",
   id,
   className,
@@ -30,7 +33,13 @@ export function SectionHeading({
   const outlinePart = { text: outline, className: "text-outline" };
 
   return (
-    <div className={cn("px-5 py-20 text-center md:py-[120px]", className)}>
+    <div
+      className={cn(
+        "px-5 pt-20 text-center md:pt-[120px]",
+        compact ? "pb-12 md:pb-20" : "pb-20 md:pb-[120px]",
+        className,
+      )}
+    >
       <TextReveal
         as={Tag}
         id={id}

@@ -19,7 +19,8 @@ export async function createParticleScene({ canvas, onReady }: Options): Promise
   if (!slots.length) return () => {};
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const N = window.innerWidth < 820 ? 11000 : 20000;
+  // About as many dots as the Figma particle artwork (~5k per shape), so each reads as its own dot.
+  const N = window.innerWidth < 820 ? 5000 : 7000;
   const R = Math.random;
 
   const buffers: ShapeBuffer[] = await Promise.all(
@@ -65,7 +66,8 @@ export async function createParticleScene({ canvas, onReady }: Options): Promise
     const m = (0.8 + R() * 1.8) / l;
     rnd.set([x * m, y * m, z * m], i * 3);
     seed[i] = R();
-    size[i] = 0.55 + Math.pow(R(), 4) * 1.6;
+    // Dot diameter ≈ 2.5 × aSize CSS px at the shape's depth: mostly 2.4–4px, a few up to ~5.5px.
+    size[i] = R() < 0.92 ? 0.96 + R() * 0.64 : 1.6 + R() * 0.6;
   }
   geo.setAttribute("aRand", new THREE.BufferAttribute(rnd, 3));
   geo.setAttribute("aSeed", new THREE.BufferAttribute(seed, 1));
@@ -73,12 +75,8 @@ export async function createParticleScene({ canvas, onReady }: Options): Promise
 
   const uniforms = {
     uT: { value: 0 },
-    uTime: { value: 0 },
     uPR: { value: pixelRatio },
-    uSpinA: { value: 0 },
-    uSpinB: { value: 0 },
     uScatter: { value: reduceMotion ? 0 : 0.9 },
-    uTwinkle: { value: reduceMotion ? 0 : 0.35 },
     uMouse: { value: new THREE.Vector2(0, 0) },
     uHover: { value: 0 },
     uRadius: { value: 1 },
@@ -90,7 +88,9 @@ export async function createParticleScene({ canvas, onReady }: Options): Promise
     fragmentShader,
     transparent: true,
     depthWrite: false,
-    blending: THREE.AdditiveBlending,
+    // Normal (not additive) blending: overlapping dots stay distinct dots instead of
+    // summing into a glowing blur.
+    blending: THREE.NormalBlending,
   });
 
   const group = new THREE.Group();
@@ -144,7 +144,26 @@ export async function createParticleScene({ canvas, onReady }: Options): Promise
   const starGeo = new THREE.BufferGeometry();
   starGeo.setAttribute("position", new THREE.BufferAttribute(sp, 3));
   starGeo.setAttribute("color", new THREE.BufferAttribute(sc, 3));
-  const starMat = new THREE.PointsMaterial({ size: 0.03, vertexColors: true, transparent: true, opacity: 0.75, depthWrite: false });
+  // Round star dots (plain points render as squares).
+  const dotTexture = (() => {
+    const c = document.createElement("canvas");
+    c.width = c.height = 64;
+    const ctx = c.getContext("2d")!;
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.arc(32, 32, 30, 0, Math.PI * 2);
+    ctx.fill();
+    return new THREE.CanvasTexture(c);
+  })();
+  const starMat = new THREE.PointsMaterial({
+    size: 0.03,
+    map: dotTexture,
+    alphaTest: 0.1,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.75,
+    depthWrite: false,
+  });
   const stars = new THREE.Points(starGeo, starMat);
   scene.add(stars);
 
@@ -210,8 +229,6 @@ export async function createParticleScene({ canvas, onReady }: Options): Promise
     aTo.array.set(buffers[nxt].positions);
     cTo.array.set(buffers[nxt].colors);
     aFrom.needsUpdate = aTo.needsUpdate = cFrom.needsUpdate = cTo.needsUpdate = true;
-    uniforms.uSpinA.value = buffers[seg].spin;
-    uniforms.uSpinB.value = buffers[nxt].spin;
     loaded = seg;
   }
 
@@ -255,7 +272,6 @@ export async function createParticleScene({ canvas, onReady }: Options): Promise
     const time = clock.getElapsedTime();
     const dt = Math.min(0.05, time - lastTime);
     lastTime = time;
-    uniforms.uTime.value = reduceMotion ? 0 : time;
 
     const rs = rects();
     const target = targetProgress(rs);
@@ -288,8 +304,9 @@ export async function createParticleScene({ canvas, onReady }: Options): Promise
     if (!reduceMotion) {
       rx += (my * 0.2 - rx) * 0.05;
       ry += (mx * 0.3 - ry) * 0.05;
-      group.rotation.x = rx + Math.sin(time * 0.35) * 0.05;
-      group.rotation.y = ry + Math.sin(time * 0.25) * 0.1;
+      // Tilt follows the mouse only; no idle sway, so the cloud is still when you are.
+      group.rotation.x = rx;
+      group.rotation.y = ry;
       stars.position.y = (window.scrollY * 0.002) % 20;
 
       // Hover repulsion: spring the cursor, ease the effect in/out, hand both to the shader.
@@ -329,6 +346,7 @@ export async function createParticleScene({ canvas, onReady }: Options): Promise
     goldGlow.material.dispose();
     blueGlow.material.dispose();
     glowTexture.dispose();
+    dotTexture.dispose();
     renderer.dispose();
   };
 }

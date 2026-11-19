@@ -5,11 +5,13 @@
  * every particle takes the position and colour of a bright pixel in the artwork, so the 3D cloud
  * looks like the design. Replace a PNG with a fresh Figma export and the shape updates by itself.
  * Procedural shapes cover places where Figma has no single illustration (the haze behind the
- * capability cards, the dust behind the closing CTA).
+ * capability cards, the dust behind the closing CTA) or where the export isn't available yet
+ * (the About page atom, Figma "Particle / Atom (thick)").
  */
 
 export type ShapeName =
   | "rocket"
+  | "atom"
   | "cloud"
   | "sphere"
   | "code"
@@ -32,8 +34,6 @@ type ImageShape = {
   bulge?: boolean;
   /** How much of its slot the shape fills (1 = edge to edge). */
   fill?: number;
-  /** Idle spin around the vertical axis, radians per second. */
-  spin?: number;
   /** Strength of the soft gold/blue halo behind the shape (Figma glow), 0–1. */
   glow?: number;
   /**
@@ -50,7 +50,6 @@ type ProceduralShape = {
   width: number;
   height: number;
   fill?: number;
-  spin?: number;
   glow?: number;
 };
 
@@ -62,7 +61,6 @@ export type ShapeBuffer = {
   width: number;
   height: number;
   fill: number;
-  spin: number;
   glow: number;
 };
 
@@ -110,9 +108,62 @@ function dust(): [Vec3, Vec3] {
   return [p, scale(c, 0.3 + R() * 0.4)];
 }
 
+/**
+ * Atom: a dense nucleus, three elliptical orbits 60° apart (each tipped back in 3D, so the
+ * mouse tilt shows depth) and an electron blob riding each orbit. Gold and blue like Figma.
+ */
+const ORBIT_A = 2;
+const ORBIT_B = 0.78;
+const ORBIT_TILT = 0.55;
+function atom(): [Vec3, Vec3] {
+  const k = R();
+  const gold = () => mix(GOLD, GOLD_LIGHT, R() * 0.6);
+  const blue = () => mix(BLUE, BLUE_LIGHT, R() * 0.6);
+
+  // Point on orbit `o` at angle t, plus a little tube thickness.
+  const onOrbit = (o: number, t: number, spread: number): Vec3 => {
+    const x0 = Math.cos(t) * ORBIT_A;
+    const y0 = Math.sin(t) * ORBIT_B;
+    const z0 = y0 * Math.sin(ORBIT_TILT); // tip the orbit back
+    const y1 = y0 * Math.cos(ORBIT_TILT);
+    const rot = (o * Math.PI) / 3;
+    const c = Math.cos(rot);
+    const s = Math.sin(rot);
+    return [x0 * c - y1 * s + gauss() * spread, x0 * s + y1 * c + gauss() * spread, z0 + gauss() * spread];
+  };
+
+  if (k < 0.16) {
+    // Nucleus: filled ball, brighter towards the centre.
+    let x = 0, y = 0, z = 0, l = 0;
+    while (l < 1e-6) {
+      x = R() * 2 - 1; y = R() * 2 - 1; z = R() * 2 - 1; l = Math.hypot(x, y, z);
+    }
+    const r = 0.5 * Math.cbrt(R()) / l;
+    return [[x * r, y * r, z * r], R() < 0.72 ? gold() : blue()];
+  }
+  if (k < 0.27) {
+    // Electrons: a small dense blob on each orbit.
+    const o = Math.floor(R() * 3);
+    const t = [0.35, 2.4, 4.3][o];
+    const p = onOrbit(o, t, 0);
+    const r = 0.17 * Math.cbrt(R());
+    const a = R() * TAU;
+    const b = Math.acos(R() * 2 - 1);
+    return [
+      [p[0] + r * Math.sin(b) * Math.cos(a), p[1] + r * Math.sin(b) * Math.sin(a), p[2] + r * Math.cos(b)],
+      R() < 0.8 ? gold() : WHITE,
+    ];
+  }
+  // Orbits: speckled gold and blue, as in the Figma artwork.
+  const o = Math.floor(R() * 3);
+  const t = R() * TAU;
+  return [onOrbit(o, t, 0.055), R() < 0.55 ? gold() : blue()];
+}
+
 /* ---------- registry ---------- */
 export const SHAPES: Record<ShapeName, ShapeDef> = {
   rocket: { kind: "image", src: "/particles/rocket.png", depth: 0.5, fill: 0.92, minAlpha: 0.2 },
+  atom: { kind: "procedural", generate: atom, width: 4.3, height: 4.3, fill: 0.95 },
   cloud: { kind: "procedural", generate: cloud, width: 7.2, height: 3.6, glow: 0.25 },
   sphere: { kind: "image", src: "/particles/sphere.png", bulge: true },
   code: { kind: "image", src: "/particles/code.png", depth: 0.45 },
@@ -120,7 +171,7 @@ export const SHAPES: Record<ShapeName, ShapeDef> = {
   cube: { kind: "image", src: "/particles/cube.png", depth: 0.6 },
   globe: { kind: "image", src: "/particles/globe.png", bulge: true },
   magnifier: { kind: "image", src: "/particles/magnifier.png", depth: 0.4 },
-  dust: { kind: "procedural", generate: dust, width: 9, height: 4, spin: 0.03, glow: 0 },
+  dust: { kind: "procedural", generate: dust, width: 9, height: 4, glow: 0 },
 };
 
 /* ---------- image sampling ---------- */
@@ -214,7 +265,6 @@ function sampleImage(px: Pixels, def: ImageShape, count: number): ShapeBuffer {
     width: worldW,
     height: worldH,
     fill: def.fill ?? 0.92,
-    spin: def.spin ?? 0,
     glow: def.glow ?? 1,
   };
 }
@@ -229,7 +279,8 @@ function toPalette(r: number, g: number, b: number): Vec3 {
   const max = Math.max(r, g, b) / 255;
   const min = Math.min(r, g, b) / 255;
   const sat = max > 0 ? (max - min) / max : 0;
-  const bright = 0.7 + Math.min(1, max * 1.2) * 0.3 + (R() - 0.5) * 0.15;
+  // Near full strength: with normal blending dots no longer brighten by stacking up.
+  const bright = 0.88 + Math.min(1, max * 1.2) * 0.12 + (R() - 0.5) * 0.08;
   let c: Vec3;
   if (sat < 0.25 && max > 0.7) c = mix(GOLD_LIGHT, WHITE, 0.6 + R() * 0.4); // white sparkle
   else if (b > r) c = mix(BLUE, BLUE_LIGHT, R() * 0.6);
@@ -251,7 +302,6 @@ function sampleProcedural(def: ProceduralShape, count: number): ShapeBuffer {
     width: def.width,
     height: def.height,
     fill: def.fill ?? 1,
-    spin: def.spin ?? 0,
     glow: def.glow ?? 1,
   };
 }
