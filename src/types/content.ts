@@ -99,3 +99,31 @@ export type JobOpening = {
   department: string;
   location: string;
 };
+
+export type LegalBlock =
+  | { type: "p"; text: string }
+  | { type: "h3"; text: string }
+  | { type: "list"; items: string[] };
+
+export type LegalSection = {
+  /** Anchor id, e.g. "information-we-collect". */
+  id: string;
+  title: string;
+  /** Label in the "Contents" sidebar (Title Case in Figma). */
+  nav: string;
+  blocks: LegalBlock[];
+};
+
+export type LegalPage = {
+  slug: string;
+  /** Outlined title word(s), e.g. "Privacy". */
+  outline: string;
+  /** Solid title word(s), e.g. "Policy". */
+  solid: string;
+  description: string;
+  effectiveDate?: string;
+  lastUpdated?: string;
+  sections: LegalSection[];
+  /** Text of the closing "Questions?" card. */
+  questions?: string;
+};
