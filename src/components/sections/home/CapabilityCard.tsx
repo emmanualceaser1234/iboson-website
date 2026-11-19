@@ -6,13 +6,11 @@ import type { CapabilityCard as CapabilityCardData } from "@/types/content";
 
 type CapabilityCardProps = {
   card: CapabilityCardData;
-  /** Step number shown large in the corner (1 → "01"). */
-  index?: number;
   className?: string;
 };
 
 /** Dark glass card from "Ideas to reality". Tilt and hover motion come from the parent stack. */
-export function CapabilityCard({ card, index, className }: CapabilityCardProps) {
+export function CapabilityCard({ card, className }: CapabilityCardProps) {
   return (
     <article
       className={cn(
@@ -21,14 +19,7 @@ export function CapabilityCard({ card, index, className }: CapabilityCardProps) 
         className,
       )}
     >
-      <div className="flex items-start justify-between">
-        {index !== undefined && (
-          <span className="font-display text-7xl font-extralight leading-none text-white/90 md:text-8xl">
-            {String(index).padStart(2, "0")}
-          </span>
-        )}
-        <SparkleIcon className="size-7 text-white" />
-      </div>
+      <SparkleIcon className="size-7 text-white" />
       <div>
         <TextReveal as="h3" text={card.title} className="font-display text-2xl leading-[1.2] text-white md:text-[26px]" />
         <TextReveal text={card.description} delay={3} className="mt-3 font-body text-[15px] leading-normal text-white/60" />
