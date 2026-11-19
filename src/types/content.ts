@@ -73,3 +73,22 @@ export type ProductDetail = {
   website: string;
   shape: ShapeName;
 };
+
+export type BlogFilter = "all" | "product-updates" | "ai-agents" | "e-commerce" | "apple-dev" | "ar-vision";
+
+export type BlogPost = {
+  slug: string;
+  title: string;
+  excerpt: string;
+  /** Category label shown above the title, e.g. "AR & computer vision". */
+  category: string;
+  /** ISO date, e.g. "2022-11-28". */
+  date: string;
+  /** Which filter chips the post appears under (it always appears under "All"). */
+  tags: Exclude<BlogFilter, "all">[];
+  href: string;
+  /** Cover image in /public; omitted until supplied (a branded placeholder shows instead). */
+  image?: string;
+};
+
+export type FeaturedPost = Omit<BlogPost, "date" | "tags" | "slug"> & { author: string };

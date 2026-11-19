@@ -16,7 +16,8 @@ type Options = {
  */
 export async function createParticleScene({ canvas, onReady }: Options): Promise<() => void> {
   const slots = Array.from(document.querySelectorAll<HTMLElement>("[data-particle-slot]"));
-  if (!slots.length) return () => {};
+  // Pages without particle slots (e.g. Blog) still get the starfield, just no shape cloud.
+  const hasShapes = slots.length > 0;
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   // Dense enough that packed areas glow like the reference render, sparse enough that
@@ -264,7 +265,8 @@ export async function createParticleScene({ canvas, onReady }: Options): Promise
   window.addEventListener("blur", onLeave);
 
   /* ---------- loop ---------- */
-  let current = targetProgress(rects());
+  group.visible = hasShapes;
+  let current = hasShapes ? targetProgress(rects()) : 0;
   let raf = 0;
   let readyFired = false;
   const clock = new THREE.Clock();
@@ -275,33 +277,35 @@ export async function createParticleScene({ canvas, onReady }: Options): Promise
     const dt = Math.min(0.05, time - lastTime);
     lastTime = time;
 
-    const rs = rects();
-    const target = targetProgress(rs);
-    current += (target - current) * (reduceMotion ? 1 : 0.2);
-    if (Math.abs(target - current) < 0.0005) current = target;
+    if (hasShapes) {
+      const rs = rects();
+      const target = targetProgress(rs);
+      current += (target - current) * (reduceMotion ? 1 : 0.2);
+      if (Math.abs(target - current) < 0.0005) current = target;
 
-    const seg = Math.min(Math.floor(current), last);
-    // f: how far we have scrolled from this slot to the next (0 → 1).
-    const f = seg >= last ? 0 : current - seg;
-    if (seg !== loaded) loadSegment(seg);
+      const seg = Math.min(Math.floor(current), last);
+      // f: how far we have scrolled from this slot to the next (0 → 1).
+      const f = seg >= last ? 0 : current - seg;
+      if (seg !== loaded) loadSegment(seg);
 
-    // Position follows scroll linearly, which keeps the cloud on screen and carries it
-    // down the page towards the next section as soon as you start scrolling.
-    // The shape itself changes in the middle of the trip.
-    const morph = smoothstep(0.12, 0.88, f);
-    uniforms.uT.value = morph;
+      // Position follows scroll linearly, which keeps the cloud on screen and carries it
+      // down the page towards the next section as soon as you start scrolling.
+      // The shape itself changes in the middle of the trip.
+      const morph = smoothstep(0.12, 0.88, f);
+      uniforms.uT.value = morph;
 
-    const nxt = Math.min(seg + 1, last);
-    const a = slotWorld(rs[seg], buffers[seg]);
-    const b = slotWorld(rs[nxt], buffers[nxt]);
-    group.position.set(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, 0);
-    group.scale.setScalar(a[2] + (b[2] - a[2]) * morph);
+      const nxt = Math.min(seg + 1, last);
+      const a = slotWorld(rs[seg], buffers[seg]);
+      const b = slotWorld(rs[nxt], buffers[nxt]);
+      group.position.set(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, 0);
+      group.scale.setScalar(a[2] + (b[2] - a[2]) * morph);
 
-    // Halos follow the shape, dimming while the particles are scattered mid-morph.
-    const glow =
-      (buffers[seg].glow * (1 - morph) + buffers[nxt].glow * morph) * (1 - Math.sin(morph * Math.PI) * 0.7);
-    goldGlow.material.opacity = 0.3 * glow;
-    blueGlow.material.opacity = 0.26 * glow;
+      // Halos follow the shape, dimming while the particles are scattered mid-morph.
+      const glow =
+        (buffers[seg].glow * (1 - morph) + buffers[nxt].glow * morph) * (1 - Math.sin(morph * Math.PI) * 0.7);
+      goldGlow.material.opacity = 0.3 * glow;
+      blueGlow.material.opacity = 0.26 * glow;
+    }
 
     if (!reduceMotion) {
       rx += (my * 0.2 - rx) * 0.05;
