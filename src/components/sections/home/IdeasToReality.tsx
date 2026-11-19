@@ -1,51 +1,32 @@
-import type { CSSProperties } from "react";
 import { Container } from "@/components/ui/Container";
-import { Reveal } from "@/components/motion/Reveal";
+import { ScrollStack } from "@/components/motion/ScrollStack";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { ParticleSlot } from "@/components/particles/ParticleSlot";
 import { capabilities } from "@/data/home";
 import { CapabilityCard } from "./CapabilityCard";
 
 /**
- * "Ideas to reality": four capability cards fanned out in 3D, like the Figma stack,
- * with the particle haze forming behind them. Flat grid on small screens.
+ * "Ideas to reality": the four capability cards as a sticky scroll stack — each card
+ * pins under the navbar and piles onto the last with a slight tilt; hover a card to
+ * straighten and enlarge it. The particle haze forms behind them.
  */
 export function IdeasToReality() {
   return (
     <section>
       <SectionHeading solid="Ideas to" outline="Reality" />
-      <Container className="relative pb-20 md:pb-[120px] md:pt-[120px]">
+      <Container className="relative pb-20 md:pb-[120px]">
         <div className="absolute inset-x-0 -top-10 bottom-0">
           <ParticleSlot shape="cloud" className="size-full" />
         </div>
 
-        {/* Mobile / tablet: simple grid */}
-        <div className="relative grid gap-4 sm:grid-cols-2 lg:hidden">
+        <ScrollStack
+          className="relative mx-auto max-w-[620px] gap-16 md:gap-20"
+          itemClassName="top-24 md:top-[120px]"
+        >
           {capabilities.map((card, i) => (
-            <Reveal key={card.title} delay={i}>
-              <CapabilityCard card={card} className="min-h-[300px]" />
-            </Reveal>
+            <CapabilityCard key={card.title} card={card} index={i + 1} className="min-h-[360px] md:h-[400px]" />
           ))}
-        </div>
-
-        {/* Desktop: overlapping tilted stack */}
-        <div className="relative mx-auto hidden h-[560px] w-[812px] lg:block">
-          {capabilities.map((card, i) => (
-            <Reveal
-              key={card.title}
-              delay={i}
-              className="absolute top-0 w-[300px] [perspective:1500px]"
-              style={{ left: i * 171 }}
-            >
-              <div
-                className="transition-transform duration-500 ease-[cubic-bezier(.2,.7,.2,1)] [transform:rotateY(-24deg)_rotateX(6deg)_rotateZ(-7deg)_translateY(var(--y))] hover:[transform:rotateY(-10deg)_rotateX(3deg)_rotateZ(-3deg)_translateY(calc(var(--y)-36px))]"
-                style={{ "--y": `${i * 30}px` } as CSSProperties}
-              >
-                <CapabilityCard card={card} className="h-[440px]" />
-              </div>
-            </Reveal>
-          ))}
-        </div>
+        </ScrollStack>
       </Container>
     </section>
   );
