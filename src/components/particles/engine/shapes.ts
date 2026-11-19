@@ -288,6 +288,94 @@ function toPalette(r: number, g: number, b: number): Vec3 {
   return scale(c, bright);
 }
 
+/* ---------- colour pattern ---------- */
+/**
+ * Colour ramp from the reference: amber gold → gold → cream → icy white → light blue →
+ * sky blue → azure. Dots take their colour from a smooth field over the shape, so colour
+ * comes in soft zones (gold edges flowing through white into bright blue) instead of
+ * random per-dot speckle.
+ */
+// Saturated colours measured from the reference render: deep orange-gold #FF8D00–#FFA100,
+// gold #FFCB39, white, light blue #60BAFF, electric cyan #0BCAFF, deep blue #3380F2.
+const RAMP: [number, Vec3][] = [
+  [0.0, [1.0, 0.5, 0.0]],
+  [0.16, [1.0, 0.6, 0.02]],
+  [0.3, [1.0, 0.78, 0.2]],
+  [0.39, [1.0, 0.95, 0.82]],
+  [0.46, [0.85, 0.95, 1.0]],
+  [0.56, [0.38, 0.73, 1.0]],
+  [0.72, [0.22, 0.58, 0.94]],
+  [0.86, [0.04, 0.72, 1.0]],
+  [1.0, [0.16, 0.45, 0.92]],
+];
+function ramp(t: number): Vec3 {
+  const x = Math.min(1, Math.max(0, t));
+  for (let i = 1; i < RAMP.length; i++) {
+    const [t1, c1] = RAMP[i];
+    if (x <= t1) {
+      const [t0, c0] = RAMP[i - 1];
+      return mix(c0, c1, (x - t0) / (t1 - t0));
+    }
+  }
+  return RAMP[RAMP.length - 1][1];
+}
+
+/** Smooth 2D value noise in 0–1, with a random offset so every shape gets its own zones. */
+function makeNoise() {
+  const table = Array.from({ length: 256 }, () => R());
+  const hash = (x: number, y: number) => table[(((x * 73856093) ^ (y * 19349663)) >>> 0) % 256];
+  const ox = R() * 100;
+  const oy = R() * 100;
+  return (px: number, py: number) => {
+    const x = px + ox;
+    const y = py + oy;
+    const xi = Math.floor(x);
+    const yi = Math.floor(y);
+    const fx = x - xi;
+    const fy = y - yi;
+    const sx = fx * fx * (3 - 2 * fx);
+    const sy = fy * fy * (3 - 2 * fy);
+    const top = hash(xi, yi) + (hash(xi + 1, yi) - hash(xi, yi)) * sx;
+    const bottom = hash(xi, yi + 1) + (hash(xi + 1, yi + 1) - hash(xi, yi + 1)) * sx;
+    return top + (bottom - top) * sy;
+  };
+}
+
+/**
+ * Recolour a sampled shape with the reference pattern. Position decides most of the
+ * colour (a top-left → bottom-right gold-to-blue drift plus soft noise patches); the
+ * artwork's own gold/blue still nudges each dot so details like the rocket's gold window
+ * ring keep their structure. Brightness is kept, so dim haze shapes stay dim.
+ */
+function applyColorPattern(buf: ShapeBuffer): ShapeBuffer {
+  const { positions, colors, width, height } = buf;
+  const noise = makeNoise();
+  for (let i = 0; i < colors.length; i += 3) {
+    const r = colors[i];
+    const g = colors[i + 1];
+    const b = colors[i + 2];
+    const bright = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const isWhite = bright > 0 && min / bright > 0.8;
+    const bias = isWhite ? 0 : b > r ? 0.16 : -0.16;
+
+    const x = positions[i] / width; // about −0.5 … 0.5
+    const y = positions[i + 1] / height;
+    const diagonal = (x - y) * 0.5 + 0.5; // 0 top-left → 1 bottom-right
+    const field = 0.45 * diagonal + 0.55 * noise(x * 2.4, y * 2.4);
+    // Stretch the field (×1.9 around 0.5) so gold and blue form big distinct zones with a
+    // thin white seam between them; +0.05 leans towards blue (reference: ~52% blue/cyan,
+    // ~32% gold, ~16% white).
+    const t = 0.55 + (field - 0.5) * 1.9 + bias + (R() - 0.5) * 0.12;
+
+    const c = scale(ramp(t), Math.min(1, bright * 1.05));
+    colors[i] = c[0];
+    colors[i + 1] = c[1];
+    colors[i + 2] = c[2];
+  }
+  return buf;
+}
+
 function sampleProcedural(def: ProceduralShape, count: number): ShapeBuffer {
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
@@ -314,10 +402,11 @@ export function getShapeBuffer(name: ShapeName, count: number): Promise<ShapeBuf
   let job = cache.get(key);
   if (!job) {
     const def = SHAPES[name];
-    job =
+    job = (
       def.kind === "image"
         ? loadPixels(def.src).then((px) => sampleImage(px, def, count))
-        : Promise.resolve(sampleProcedural(def, count));
+        : Promise.resolve(sampleProcedural(def, count))
+    ).then(applyColorPattern);
     job.catch(() => cache.delete(key));
     cache.set(key, job);
   }

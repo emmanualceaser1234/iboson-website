@@ -19,8 +19,9 @@ export async function createParticleScene({ canvas, onReady }: Options): Promise
   if (!slots.length) return () => {};
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  // About as many dots as the Figma particle artwork (~5k per shape), so each reads as its own dot.
-  const N = window.innerWidth < 820 ? 5000 : 7000;
+  // Dense enough that packed areas glow like the reference render, sparse enough that
+  // each crisp dot still reads on its own.
+  const N = window.innerWidth < 820 ? 7000 : 11000;
   const R = Math.random;
 
   const buffers: ShapeBuffer[] = await Promise.all(
@@ -88,9 +89,9 @@ export async function createParticleScene({ canvas, onReady }: Options): Promise
     fragmentShader,
     transparent: true,
     depthWrite: false,
-    // Normal (not additive) blending: overlapping dots stay distinct dots instead of
-    // summing into a glowing blur.
-    blending: THREE.NormalBlending,
+    // Additive blending: where crisp dots overlap they add up, so dense patches glow
+    // (electric cyan, white-hot centres) with the intensity of the reference render.
+    blending: THREE.AdditiveBlending,
   });
 
   const group = new THREE.Group();

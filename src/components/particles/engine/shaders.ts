@@ -25,8 +25,9 @@ export const vertexShader = /* glsl */ `
   varying float vSize;
 
   void main() {
-    // Each dot has its own opacity, like the Figma artwork's 0.42 / 0.74 / 0.9 fills.
-    vAlpha = 0.45 + 0.5 * fract(aSeed * 91.7);
+    // Each dot has its own opacity. Kept moderate because dots are blended additively:
+    // a few overlaps glow brighter without every dense patch burning out to white.
+    vAlpha = 0.3 + 0.45 * fract(aSeed * 91.7);
 
     // Stagger: each particle starts its trip at a slightly different moment.
     float st = aSeed * 0.35;
