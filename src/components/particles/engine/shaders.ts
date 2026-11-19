@@ -14,11 +14,11 @@ export const vertexShader = /* glsl */ `
   uniform float uT;
   uniform float uPR;
   uniform float uScatter;
-  // Cursor repulsion (world units on the z = 0 plane, where the shape sits).
+  // Hover lens (world units on the z = 0 plane, where the shape sits).
   uniform vec2 uMouse;
   uniform float uHover;
   uniform float uRadius;
-  uniform float uPush;
+  uniform float uZoom;
 
   varying vec3 vCol;
   varying float vAlpha;
@@ -35,18 +35,22 @@ export const vertexShader = /* glsl */ `
     vec3 pos = mix(position, aTo, lt) + aRand * sin(lt * 3.14159) * uScatter;
     vCol = mix(cFrom, cTo, lt);
 
-    // Hover: particles near the cursor are pushed straight away from it, strongest at the
-    // centre and fading to nothing at uRadius, so a hole opens under the mouse.
+    // Hover: a soft magnifying lens under the cursor. Inside uRadius the patch is scaled up
+    // around the cursor (1 + uZoom at the centre, easing back to 1 at the rim) and its dots
+    // grow by the same amount, so that part of the shape looks zoomed in. The falloff
+    // keeps the mapping one-to-one (no gap, no dots crossing) for uZoom up to ~2.
     vec4 world = modelMatrix * vec4(pos, 1.0);
     vec2 away = world.xy - uMouse;
     float dist = length(away);
-    if (uHover > 0.0 && dist < uRadius && dist > 1e-4) {
-      float push = (1.0 - dist / uRadius) * uPush * uHover * (0.75 + 0.5 * aSeed);
-      world.xy += away / dist * push;
+    float mag = 1.0;
+    if (uHover > 0.0 && dist < uRadius) {
+      float u = 1.0 - dist / uRadius;
+      mag = 1.0 + uZoom * uHover * u * u;
+      world.xy = uMouse + away * mag;
     }
 
     vec4 mv = viewMatrix * world;
-    gl_PointSize = aSize * uPR * (20.0 / -mv.z);
+    gl_PointSize = aSize * mag * uPR * (20.0 / -mv.z);
     vSize = gl_PointSize;
     gl_Position = projectionMatrix * mv;
   }

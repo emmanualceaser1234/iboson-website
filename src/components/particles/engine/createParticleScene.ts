@@ -80,7 +80,7 @@ export async function createParticleScene({ canvas, onReady }: Options): Promise
     uMouse: { value: new THREE.Vector2(0, 0) },
     uHover: { value: 0 },
     uRadius: { value: 1 },
-    uPush: { value: 0 },
+    uZoom: { value: 0 },
   };
   const mat = new THREE.ShaderMaterial({
     uniforms,
@@ -232,10 +232,11 @@ export async function createParticleScene({ canvas, onReady }: Options): Promise
     loaded = seg;
   }
 
-  /* ---------- pointer parallax + hover repulsion ---------- */
-  // Repulsion, after the Framer "dot SVG" hover: particles within 2 × SEPARATION px of the
-  // cursor are pushed away by up to SEPARATION px; the cursor is followed by a spring.
-  const SEPARATION = 90; // px
+  /* ---------- pointer parallax + hover lens ---------- */
+  // Hovering magnifies the patch of particles under the cursor: LENS_RADIUS px around it,
+  // up to 1 + LENS_ZOOM at the centre. The lens follows the cursor on a spring.
+  const LENS_RADIUS = 140; // px
+  const LENS_ZOOM = 0.35;
   const SPRING = { stiffness: 150, damping: 20 };
   let mx = 0, my = 0, rx = 0, ry = 0;
   let px = 0, py = 0; // cursor target, CSS px
@@ -309,7 +310,7 @@ export async function createParticleScene({ canvas, onReady }: Options): Promise
       group.rotation.y = ry;
       stars.position.y = (window.scrollY * 0.002) % 20;
 
-      // Hover repulsion: spring the cursor, ease the effect in/out, hand both to the shader.
+      // Hover lens: spring the cursor, ease the effect in/out, hand both to the shader.
       vx += (SPRING.stiffness * (px - sx) - SPRING.damping * vx) * dt;
       vy += (SPRING.stiffness * (py - sy) - SPRING.damping * vy) * dt;
       sx += vx * dt;
@@ -320,8 +321,8 @@ export async function createParticleScene({ canvas, onReady }: Options): Promise
       const pxToWorld = VIS_H / vh;
       uniforms.uMouse.value.set((sx / vw - 0.5) * VIS_H * (vw / vh), (0.5 - sy / vh) * VIS_H);
       uniforms.uHover.value = hover;
-      uniforms.uRadius.value = SEPARATION * 2 * pxToWorld;
-      uniforms.uPush.value = SEPARATION * pxToWorld;
+      uniforms.uRadius.value = LENS_RADIUS * pxToWorld;
+      uniforms.uZoom.value = LENS_ZOOM;
     }
 
     renderer.render(scene, camera);
