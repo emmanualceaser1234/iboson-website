@@ -40,10 +40,10 @@ export function LegalContents({ sections }: { sections: Pick<LegalSection, "id" 
   return (
     <nav
       aria-label="Contents"
-      className="sticky top-[120px] rounded-2xl border border-white/10 bg-white/[0.03] px-7 py-7 backdrop-blur-sm"
+      className="sticky top-[120px] rounded-2xl border border-white/10 bg-white/[0.03] px-[29px] pb-7 pt-8 backdrop-blur-sm"
     >
       <p className="font-display text-xs uppercase tracking-[0.14em] text-gold">Contents</p>
-      <ol className="mt-5 space-y-1">
+      <ol className="mt-[18px]">
         {sections.map((s, i) => {
           const isActive = s.id === active;
           return (
@@ -52,11 +52,11 @@ export function LegalContents({ sections }: { sections: Pick<LegalSection, "id" 
                 href={`#${s.id}`}
                 aria-current={isActive ? "location" : undefined}
                 className={cn(
-                  "flex items-center gap-3 py-1.5 font-display text-sm tracking-[0.02em] transition-colors",
-                  isActive ? "text-white" : "text-white/60 hover:text-white",
+                  "flex h-[42px] items-center gap-3 font-display text-sm font-light tracking-[0.02em] transition-colors",
+                  isActive ? "text-white" : "text-white/70 hover:text-white",
                 )}
               >
-                <span className={cn("w-5 shrink-0 tabular-nums", isActive ? "text-gold" : "text-white/40")}>
+                <span className={cn("w-[22px] shrink-0 tabular-nums", isActive ? "text-gold" : "text-white/45")}>
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <span className="flex-1">{s.nav}</span>

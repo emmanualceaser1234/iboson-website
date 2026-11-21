@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { seededRandom } from "./random";
 import { fragmentShader, vertexShader } from "./shaders";
 import { getShapeBuffer, type ShapeBuffer, type ShapeName } from "./shapes";
 
@@ -23,7 +24,8 @@ export async function createParticleScene({ canvas, onReady }: Options): Promise
   // Dense enough that packed areas glow like the reference render, sparse enough that
   // each crisp dot still reads on its own.
   const N = window.innerWidth < 820 ? 7000 : 11000;
-  const R = Math.random;
+  // Fixed seed: dot sizes, scatter directions and the starfield are the same on every load.
+  const R = seededRandom(20261120);
 
   const buffers: ShapeBuffer[] = await Promise.all(
     slots.map((s) => getShapeBuffer(s.dataset.shape as ShapeName, N)),

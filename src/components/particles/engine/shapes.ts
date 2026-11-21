@@ -9,6 +9,8 @@
  * (the About page atom, Figma "Particle / Atom (thick)").
  */
 
+import { hashString, seededRandom } from "./random";
+
 export type ShapeName =
   | "rocket"
   | "atom"
@@ -21,6 +23,7 @@ export type ShapeName =
   | "magnifier"
   | "like"
   | "megaphone"
+  | "scatter"
   | "dust";
 
 type Vec3 = [number, number, number];
@@ -83,7 +86,18 @@ export type ShapeBuffer = {
 };
 
 /* ---------- helpers ---------- */
-const R = Math.random;
+// All shape randomness goes through R. While a shape is built, R is swapped for a generator
+// seeded from the shape's name (see withSeed), so the same shape looks identical every load.
+let R: () => number = Math.random;
+function withSeed<T>(key: string, build: () => T): T {
+  const previous = R;
+  R = seededRandom(hashString(key));
+  try {
+    return build();
+  } finally {
+    R = previous;
+  }
+}
 const TAU = Math.PI * 2;
 const gauss = () => {
   let u = 0;
@@ -116,6 +130,30 @@ function cloud(): [Vec3, Vec3] {
   const k = R();
   const c = k < 0.72 ? scale(WHITE, 0.35 + R() * 0.4) : k < 0.88 ? mix(GOLD, GOLD_LIGHT, R()) : mix(BLUE, BLUE_LIGHT, R());
   return [p, c];
+}
+
+/**
+ * Loose scattered cloud (About page, beside Vision and Mission): a few soft clumps of dots
+ * with strays drifting around them, so it reads as particles at rest rather than a shape.
+ */
+const SCATTER_CLUMPS: [number, number, number][] = [
+  [-0.95, 0.7, 0.42],
+  [0.85, 0.95, 0.36],
+  [0.25, -0.15, 0.5],
+  [-0.7, -0.95, 0.38],
+  [1.15, -0.85, 0.32],
+];
+function scatter(): [Vec3, Vec3] {
+  let p: Vec3;
+  if (R() < 0.68) {
+    const [cx, cy, sd] = SCATTER_CLUMPS[Math.floor(R() * SCATTER_CLUMPS.length)];
+    p = [cx + gauss() * sd, cy + gauss() * sd, gauss() * 0.45];
+  } else {
+    p = [gauss() * 1.15, gauss() * 1.15, gauss() * 0.6];
+  }
+  const c = R() < 0.5 ? mix(GOLD, GOLD_LIGHT, R() * 0.5) : mix(BLUE, BLUE_LIGHT, R() * 0.6);
+  // Strays are dimmer than the clumps, for depth.
+  return [p, scale(c, 0.55 + R() * 0.45)];
 }
 
 function dust(): [Vec3, Vec3] {
@@ -271,6 +309,7 @@ export const SHAPES: Record<ShapeName, ShapeDef> = {
   globe: { kind: "image", src: "/particles/globe.png", bulge: true },
   magnifier: { kind: "image", src: "/particles/magnifier.png", depth: 0.4 },
   dust: { kind: "procedural", generate: dust, width: 9, height: 4, glow: 0 },
+  scatter: { kind: "procedural", generate: scatter, width: 4.4, height: 4.2, fill: 0.95, glow: 0.45 },
 };
 
 /* ---------- image sampling ---------- */
@@ -511,15 +550,23 @@ export function getShapeBuffer(name: ShapeName, count: number): Promise<ShapeBuf
   let job = cache.get(key);
   if (!job) {
     const def = SHAPES[name];
-    const built =
+    const seed = `${name}:${count}`;
+    job =
       def.kind === "image"
-        ? loadPixels(def.src).then((px) => sampleImage(px, def, count))
-        : def.kind === "canvas"
-          ? Promise.resolve().then(() =>
-              sampleImage(drawPixels(def), { kind: "image", src: name, depth: def.depth, fill: def.fill, glow: def.glow }, count),
-            )
-          : Promise.resolve(sampleProcedural(def, count));
-    job = built.then(applyColorPattern);
+        ? loadPixels(def.src).then((px) => withSeed(seed, () => applyColorPattern(sampleImage(px, def, count))))
+        : Promise.resolve().then(() =>
+            withSeed(seed, () =>
+              applyColorPattern(
+                def.kind === "canvas"
+                  ? sampleImage(
+                      drawPixels(def),
+                      { kind: "image", src: name, depth: def.depth, fill: def.fill, glow: def.glow },
+                      count,
+                    )
+                  : sampleProcedural(def, count),
+              ),
+            ),
+          );
     job.catch(() => cache.delete(key));
     cache.set(key, job);
   }

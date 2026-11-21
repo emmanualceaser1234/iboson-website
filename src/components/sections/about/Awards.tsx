@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { Marquee } from "@/components/ui/Marquee";
 import { SectionHeading } from "@/components/ui/SectionHeading";
-import { SparkleIcon } from "@/components/ui/icons";
+import { Laurel } from "@/components/ui/Laurel";
 import { awards } from "@/data/about";
 
 /** "Awards and recognition": a slow marquee of laurel badges (325 × 97 in Figma). */
@@ -13,18 +13,22 @@ export function Awards() {
         {awards.map((award) => (
           <div
             key={award.name}
-            className="relative mx-5 flex h-[97px] w-[325px] shrink-0 items-center justify-center"
+            className="relative mx-6 flex h-[97px] min-w-[240px] shrink-0 items-center justify-center"
           >
             {award.image ? (
               <Image src={award.image} alt={award.name} fill sizes="325px" className="object-contain" />
             ) : (
-              // Text badge until the Figma laurel images are exported.
-              <div className="flex items-center gap-4 text-white/85">
-                <SparkleIcon className="size-4 shrink-0 text-white/40" />
-                <span className="max-w-[190px] text-center font-body text-[17px] font-semibold leading-tight">
-                  {award.name}
+              // Figma laurel badge: grey wreath branches either side of the award name.
+              <div className="flex items-center gap-2">
+                <Laurel flip className="h-[90px] w-auto shrink-0 text-[#959595]" />
+                <span className="text-center font-body text-[19px] font-semibold leading-[1.15] text-white">
+                  {(award.lines ?? [award.name]).map((line) => (
+                    <span key={line} className="block whitespace-nowrap">
+                      {line}
+                    </span>
+                  ))}
                 </span>
-                <SparkleIcon className="size-4 shrink-0 text-white/40" />
+                <Laurel className="h-[90px] w-auto shrink-0 text-[#959595]" />
               </div>
             )}
           </div>

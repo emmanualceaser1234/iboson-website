@@ -41,6 +41,8 @@ export type Milestone = { year: string; title: string; description: string };
 
 export type Award = {
   name: string;
+  /** Line breaks for the laurel badge text (Figma layout); defaults to `name` on one line. */
+  lines?: string[];
   /** Laurel badge image in /public; omitted until supplied (the name shows as text instead). */
   image?: string;
 };
@@ -123,6 +125,8 @@ export type LegalPage = {
   description: string;
   effectiveDate?: string;
   lastUpdated?: string;
+  /** Show only the effective date (Figma DPA has no "last updated"). */
+  effectiveOnly?: boolean;
   sections: LegalSection[];
   /** Text of the closing "Questions?" card. */
   questions?: string;

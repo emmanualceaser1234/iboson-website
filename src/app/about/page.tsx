@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   return (
     <>
-      {/* Only the hero has a particle shape on this page (Figma); the starfield runs throughout. */}
+      {/* The atom breaks into a loose scatter beside Vision (left), then Mission (right). */}
       <ParticleScene />
       <main className="relative z-10">
         <PageHero
@@ -26,8 +26,8 @@ export default function AboutPage() {
           description={aboutHero.description}
           shape="atom"
         />
-        <AboutStatement title="Vision" text={vision} align="right" />
-        <AboutStatement title="Mission" text={mission} />
+        <AboutStatement title="Vision" text={vision} align="right" shape="scatter" />
+        <AboutStatement title="Mission" text={mission} shape="scatter" />
         <ByTheNumbers />
         <Team />
         <Journey />

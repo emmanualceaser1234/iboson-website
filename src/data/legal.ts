@@ -1076,6 +1076,7 @@ export const refund: LegalPage = {
 
 export const dpa: LegalPage = {
   "slug": "data-processing-agreement",
+  "effectiveOnly": true,
   "outline": "DATA PROCESSING",
   "solid": "AGREEMENT",
   "description": "This DPA forms part of the service agreement between the customer (Data Controller) and iBoson Innovations Pvt. Ltd. (Data Processor).",

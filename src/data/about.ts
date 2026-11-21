@@ -57,16 +57,20 @@ export const milestones: Milestone[] = [
   },
 ];
 
-// From the Figma "Awards" strip. TODO: add `image` paths once the laurel badges are exported.
+// From the Figma "Awards" strip; `lines` are the line breaks used on each laurel badge.
+// To use exported badge images instead, add `image` paths.
 export const awards: Award[] = [
-  { name: "Global Entrepreneur Program" },
-  { name: "Microsoft Startup Program" },
-  { name: "Innovative Startup Award" },
-  { name: "Entrepreneur India startup Awards Winner" },
-  { name: "National Startup Awards finalist" },
-  { name: "Nvidia Inception Program" },
-  { name: "Government Hackathon Winner" },
-  { name: "National Startup Finalist" },
-  { name: "Singularity University Selection" },
-  { name: "IIM Bangalore Incubation" },
+  { name: "Global Entrepreneur Program", lines: ["Global", "Entrepreneur", "Program"] },
+  { name: "Microsoft Startup Program", lines: ["Microsoft", "Startup", "Program"] },
+  { name: "Innovative Startup Award", lines: ["Innovative", "Startup", "Award"] },
+  {
+    name: "Entrepreneur India startup Awards Winner",
+    lines: ["Entrepreneur", "India startup", "Awards Winner"],
+  },
+  { name: "National Startup Awards finalist", lines: ["National", "Startup", "Awards finalist"] },
+  { name: "Nvidia Inception Program", lines: ["Nvidia", "Inception", "Program"] },
+  { name: "Government Hackathon Winner", lines: ["Government", "Hackathon", "Winner"] },
+  { name: "National Startup Finalist", lines: ["National Startup", "Finalist"] },
+  { name: "Singularity University Selection", lines: ["Singularity", "University", "Selection"] },
+  { name: "IIM Bangalore Incubation", lines: ["IIM Bangalore", "Incubation"] },
 ];
